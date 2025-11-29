@@ -32,16 +32,25 @@ def check_anchors(dataset, model, thr=4.0, imgsz=640):
     scale = np.random.uniform(0.9, 1.1, size=(shapes.shape[0], 1))  # augment scale
     wh = torch.tensor(np.concatenate([l[:, 3:5] * s for s, l in zip(shapes * scale, dataset.labels)])).float()  # wh
 
-    def metric(k):  # compute metric
+    def metric(k):  # compute metric (ensure same device and tensor type)
+        if isinstance(k, np.ndarray):
+            k = torch.tensor(k, dtype=wh.dtype, device=wh.device)
+        else:
+            k = k.to(wh.device)
         r = wh[:, None] / k[None]
+        # Avoid inf/nan if any zero values
+        r[r == float('inf')] = 0
         x = torch.min(r, 1 / r).min(2)[0]  # ratio metric
         best = x.max(1)[0]  # best_x
-        aat = (x > 1 / thr).float().sum(1).mean()  # anchors above threshold
-        bpr = (best > 1 / thr).float().mean()  # best possible recall
+        aat = (x > 1 / thr).float().sum(1).mean() if x.numel() else torch.tensor(0.0, device=wh.device)
+        bpr = (best > 1 / thr).float().mean() if best.numel() else torch.tensor(0.0, device=wh.device)
         return bpr, aat
 
     anchors = m.anchors.clone() * m.stride.to(m.anchors.device).view(-1, 1, 1)  # current anchors
-    bpr, aat = metric(anchors.cpu().view(-1, 2))
+    # Keep wh and anchors on same device
+    wh_device = m.anchors.device
+    wh = wh.to(wh_device)
+    bpr, aat = metric(anchors.view(-1, 2))
     s = f'\n{PREFIX}{aat:.2f} anchors/target, {bpr:.3f} Best Possible Recall (BPR). '
     if bpr > 0.98:  # threshold to recompute
         LOGGER.info(emojis(f'{s}Current anchors are a good fit to dataset ✅'))
