@@ -182,7 +182,7 @@ class ComputeLoss:
 
         for i in range(self.nl):
             anchors = self.anchors[i]
-            gain[2:6] = torch.tensor(p[i].shape)[[3, 2, 3, 2]]  # xyxy gain
+            gain[2:6] = torch.tensor(p[i].shape, device=targets.device)[[3, 2, 3, 2]].float()  # xyxy gain
 
             # Match targets to anchors
             t = targets * gain
@@ -196,11 +196,12 @@ class ComputeLoss:
                 # Offsets
                 gxy = t[:, 2:4]  # grid xy
                 gxi = gain[[2, 3]] - gxy  # inverse
-                j, k = ((gxy % 1 < g) & (gxy > 1)).T
-                l, m = ((gxi % 1 < g) & (gxi > 1)).T
-                j = torch.stack((torch.ones_like(j), j, k, l, m))
-                t = t.repeat((5, 1, 1))[j]
-                offsets = (torch.zeros_like(gxy)[None] + off[:, None])[j]
+                j_mask, k_mask = ((gxy % 1 < g) & (gxy > 1)).T
+                l_mask, m_mask = ((gxi % 1 < g) & (gxi > 1)).T
+                base = torch.ones_like(j_mask)
+                mask_stack = torch.stack((base, j_mask, k_mask, l_mask, m_mask))
+                t = t.repeat((5, 1, 1))[mask_stack]
+                offsets = (torch.zeros_like(gxy, device=targets.device)[None] + off[:, None])[mask_stack]
             else:
                 t = targets[0]
                 offsets = 0
@@ -209,14 +210,18 @@ class ComputeLoss:
             b, c = t[:, :2].long().T  # image, class
             gxy = t[:, 2:4]  # grid xy
             gwh = t[:, 4:6]  # grid wh
-            gij = (gxy - offsets).long()
+            gij = (gxy - offsets).round().long()
             gi, gj = gij.T  # grid xy indices
 
             # Append
             a = t[:, 6].long()  # anchor indices
-            indices.append((b, a, gj.clamp_(0, gain[3] - 1), gi.clamp_(0, gain[2] - 1)))  # image, anchor, grid indices
-            tbox.append(torch.cat((gxy - gij, gwh), 1))  # box
-            anch.append(anchors[a])  # anchors
+            max_gj = int(p[i].shape[2] - 1)
+            max_gi = int(p[i].shape[3] - 1)
+            gj = gj.clamp_(0, max_gj)
+            gi = gi.clamp_(0, max_gi)
+            indices.append((b, a, gj, gi))  # image, anchor, grid indices
+            tbox.append(torch.cat((gxy - gij.float(), gwh), 1))  # box
+            anch.append(anchors[a].to(targets.device))  # anchors
             tcls.append(c)  # class
 
         return tcls, tbox, indices, anch
