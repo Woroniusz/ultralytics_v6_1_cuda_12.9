@@ -19,7 +19,7 @@ import torch
 import torch.nn as nn
 import yaml
 from PIL import Image
-from torch.cuda import amp
+import torch.amp as amp
 
 from utils.datasets import exif_transpose, letterbox
 from utils.general import (LOGGER, check_requirements, check_suffix, check_version, colorstr, increment_path,
@@ -519,7 +519,7 @@ class AutoShape(nn.Module):
         p = next(self.model.parameters()) if self.pt else torch.zeros(1)  # for device and type
         autocast = self.amp and (p.device.type != 'cpu')  # Automatic Mixed Precision (AMP) inference
         if isinstance(imgs, torch.Tensor):  # torch
-            with amp.autocast(enabled=autocast):
+            with amp.autocast('cuda', enabled=autocast):
                 return self.model(imgs.to(p.device).type_as(p), augment, profile)  # inference
 
         # Pre-process
@@ -548,7 +548,7 @@ class AutoShape(nn.Module):
         x = torch.from_numpy(x).to(p.device).type_as(p) / 255  # uint8 to fp16/32
         t.append(time_sync())
 
-        with amp.autocast(enabled=autocast):
+        with amp.autocast('cuda', enabled=autocast):
             # Inference
             y = self.model(x, augment, profile)  # forward
             t.append(time_sync())
