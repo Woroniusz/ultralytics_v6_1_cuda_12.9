@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ultralytics-yolov5"
+version = "0.0.0"
+description = "YOLOv5 training, validation, and inference scripts"
+readme = "README.md"
+requires-python = "==3.12.*"
+license = { text = "GPL-3.0-only" }
+authors = [{ name = "Ultralytics" }]
+
+dependencies = [
+  "matplotlib>=3.2.2",
+  "numpy>=1.18.5",
+  "opencv-python>=4.1.2",
+  "Pillow>=7.1.2",
+  "PyYAML>=5.3.1",
+  "requests>=2.23.0",
+  "scipy>=1.4.1",
+  "torch==2.9.1",
+  "torchvision>=0.24,<0.25",
+  "tqdm>=4.41.0",
+  "tensorboard>=2.4.1",
+  "pandas>=1.1.4",
+  "seaborn>=0.11.0",
+  "thop",
+]
+
+[project.optional-dependencies]
+notebook = ["psutil", "ipython"]
+coco = ["pycocotools>=2.0"]
+export = [
+  "coremltools>=4.1",
+  "onnx>=1.9.0",
+  "onnx-simplifier>=0.3.6",
+  "tensorflow>=2.4.1",
+  "tensorflowjs>=3.9.0",
+  "openvino-dev",
+  "scikit-learn==0.19.2",
+]
+
+dev = [
+  "pytest",
+  "flake8",
+  "isort",
+  "pre-commit",
+]
+
+[tool.uv]
+# Dodatkowe ustawienia uv (opcjonalne)
+# Użyj dodatkowego indeksu kół PyTorch CUDA 12.8
+extra-index-url = ["https://download.pytorch.org/whl/cu128"]
+package = false
+
+
