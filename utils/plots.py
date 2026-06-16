@@ -55,16 +55,25 @@ def check_pil_font(font=FONT, size=10):
     try:
         return ImageFont.truetype(str(font) if font.exists() else font.name, size)
     except Exception:  # download if missing
-        check_font(font)
+        try:
+            check_font(font)
+        except Exception:
+            pass
         try:
             return ImageFont.truetype(str(font), size)
         except TypeError:
             check_requirements('Pillow>=8.4.0')  # known issue https://github.com/ultralytics/yolov5/issues/5374
+        except Exception:
+            pass
+    return ImageFont.load_default()
 
 
 class Annotator:
     if RANK in (-1, 0):
-        check_pil_font()  # download TTF if necessary
+        try:
+            FONT = check_pil_font()
+        except Exception:
+            FONT = ImageFont.load_default()
 
     # YOLOv5 Annotator for train/val mosaics and jpgs and detect/hub inference annotations
     def __init__(self, im, line_width=None, font_size=None, font='Arial.ttf', pil=False, example='abc'):
